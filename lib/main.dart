@@ -27,8 +27,8 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
   final _sfx = AudioPlayer();
   final _rng = Random();
   double _angle = 0;
-  double _speed = 2.4;
-  int _segments = 6;
+  double _speed = 1.6;
+  int _segments = 4;
   int _target = 0;
   int _score = 0;
   int _best = 0;
@@ -63,29 +63,37 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     });
   }
 
+  int _segmentAtNotch() {
+    final segAngle = 2 * pi / _segments;
+    // painter centers segment i at: -pi/2 + angle + i*segAngle
+    // notch sits at -pi/2 (screen top)
+    // solve: i*segAngle ≈ -angle  =>  i = round(-angle / segAngle)
+    double a = -_angle + segAngle / 2;
+    a = ((a % (2 * pi)) + 2 * pi) % (2 * pi);
+    return (a / segAngle).floor() % _segments;
+  }
+
   void _tap() {
     if (_dead) {
       setState(() {
-        _dead = false; _score = 0; _speed = 2.4; _segments = 6;
+        _dead = false; _score = 0; _speed = 1.6; _segments = 4;
         _newRound();
       });
       return;
     }
-    // determine which segment is at notch (top, angle = -pi/2)
-    final segAngle = 2 * pi / _segments;
-    // notch at -pi/2; segment i covers [-pi/2 + i*segAngle - segAngle/2, +segAngle/2]
-    // segments rotate counter to disk: equivalent reverse mapping
-    final adj = (-pi/2 - _angle) % (2 * pi);
-    final norm = (adj + 2*pi) % (2*pi);
-    final idx = (norm / segAngle).floor() % _segments;
+    final idx = _segmentAtNotch();
     if (idx == _target) {
       _sfx.play(AssetSource('sfx.wav'));
       setState(() {
         _score++;
         if (_score > _best) _best = _score;
-        _speed += 0.18;
-        if (_score % 5 == 0 && _segments < 8) _segments++;
-        if (_score % 4 == 0) _speed = -_speed; // reverse
+        // gentle ramp
+        if (_score % 3 == 0) _speed += 0.12;
+        if (_score == 8) _segments = 5;
+        if (_score == 16) _segments = 6;
+        if (_score == 26) _segments = 7;
+        if (_score == 38) _segments = 8;
+        if (_score % 7 == 0) _speed = -_speed; // occasional reverse
         _newRound();
       });
     } else {
